@@ -1,0 +1,33 @@
+services:
+  surge-postgres:
+    image: postgres:15
+    container_name: surge-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: surge_development
+    ports:
+      - "5432"
+    volumes:
+      - surge-postgres-data:/var/lib/postgres
+    networks:
+      surge-network:
+  surge-core:
+    container_name: surge-core
+    build:
+      context: ./
+      dockerfile: development.Dockerfile
+    env_file:
+      - .env
+      - .env.docker
+    command:
+      - ./surge
+    networks:
+      surge-network:
+
+volumes:
+  surge-postgres-data:
+
+networks:
+  surge-network:
+    driver: bridge

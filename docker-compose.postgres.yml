@@ -1,0 +1,18 @@
+# Postgres Only Compose
+
+services:
+  surge-postgres-standalone:
+    image: postgres:15
+    container_name: surge-postgres-standalone
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: surge_development
+    ports:
+      - "5432:5432"
+    volumes:
+      - surge-postgres-data:/var/lib/postgres
+
+
+volumes:
+  surge-postgres-data:
