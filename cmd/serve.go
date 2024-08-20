@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
+	"surge/internal/api"
 )
 
 var serveCommand = cobra.Command{
@@ -15,5 +16,7 @@ func buildServeCommand() *cobra.Command {
 }
 
 func handleServeCommand(cmd *cobra.Command, args []string) error {
+	surgeAPI := api.NewSurgeAPI()
+	surgeAPI.ListenAndServe(cmd.Context(), "0.0.0.0:3000")
 	return nil
 }

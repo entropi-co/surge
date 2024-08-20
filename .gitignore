@@ -1,5 +1,7 @@
 surge
 
+# Development PostgreSQL
+.postgres
 .env
 
 # Editor

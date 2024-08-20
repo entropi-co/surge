@@ -12,4 +12,4 @@ RUN cp /build/surge .
 
 FROM alpine AS runtime
 COPY --from=builder /dist/surge .
-COPY ./migrations ./migrations
+COPY schema ./schema

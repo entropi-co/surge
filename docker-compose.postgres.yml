@@ -11,8 +11,4 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - surge-postgres-data:/var/lib/postgres
-
-
-volumes:
-  surge-postgres-data:
+      - ./.postgres:/var/lib/postgres
