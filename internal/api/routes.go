@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/cors"
 	"net/http"
 )
@@ -16,12 +17,13 @@ func (a *SurgeAPI) createHttpHandler() http.Handler {
 
 func (a *SurgeAPI) createRouter() *SurgeAPIRouter {
 	router := NewSurgeAPIRouter()
+	router.UseBypass(middleware.RequestID)
 
 	router.Get("/health", a.EndpointHealth)
 
 	router.Route("/v1", func(router *SurgeAPIRouter) {
-		router.Route("/signin", func(router *SurgeAPIRouter) {
-			router.Post("/credentials", a.EndpointSignInWithCredentials)
+		router.Route("/sign_up", func(router *SurgeAPIRouter) {
+			router.Post("/credentials", a.EndpointSignUpWithCredentials)
 		})
 	})
 

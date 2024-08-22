@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"surge/internal/api"
+	"surge/internal/conf"
 )
 
 var serveCommand = cobra.Command{
@@ -16,7 +18,16 @@ func buildServeCommand() *cobra.Command {
 }
 
 func handleServeCommand(cmd *cobra.Command, args []string) error {
-	surgeAPI := api.NewSurgeAPI()
+	config, err := conf.LoadFromEnvironments()
+	if err != nil {
+		logrus.WithError(err).Warn("Failed to load configuration from environments\n")
+	} else {
+		logrus.Println("Loaded configuration from environments")
+	}
+
+	surgeAPI := api.NewSurgeAPI(config)
+	defer surgeAPI.CloseDatabaseConnection()
+
 	surgeAPI.ListenAndServe(cmd.Context(), "0.0.0.0:3000")
 	return nil
 }

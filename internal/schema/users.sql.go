@@ -13,25 +13,79 @@ import (
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO auth.users(id, email, username, encrypted_password, created_at, updated_at)
-values ($1, $2, $3, $4, now(), now())
+INSERT INTO auth.users(email, username, encrypted_password, created_at, updated_at)
+values ($1, $2, $3, now(), now())
 RETURNING id, email, username, encrypted_password, created_at, updated_at
 `
 
 type CreateUserParams struct {
-	ID                uuid.UUID
 	Email             sql.NullString
 	Username          sql.NullString
 	EncryptedPassword sql.NullString
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (AuthUser, error) {
-	row := q.db.QueryRowContext(ctx, createUser,
-		arg.ID,
-		arg.Email,
-		arg.Username,
-		arg.EncryptedPassword,
+	row := q.db.QueryRowContext(ctx, createUser, arg.Email, arg.Username, arg.EncryptedPassword)
+	var i AuthUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.EncryptedPassword,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
+	return i, err
+}
+
+const getUser = `-- name: GetUser :one
+SELECT id, email, username, encrypted_password, created_at, updated_at
+from auth.users
+WHERE id = $1
+`
+
+func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (AuthUser, error) {
+	row := q.db.QueryRowContext(ctx, getUser, id)
+	var i AuthUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.EncryptedPassword,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, email, username, encrypted_password, created_at, updated_at
+from auth.users
+WHERE email = $1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email sql.NullString) (AuthUser, error) {
+	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
+	var i AuthUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.EncryptedPassword,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserByUsername = `-- name: GetUserByUsername :one
+SELECT id, email, username, encrypted_password, created_at, updated_at
+from auth.users
+WHERE username = $1
+`
+
+func (q *Queries) GetUserByUsername(ctx context.Context, username sql.NullString) (AuthUser, error) {
+	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
 	var i AuthUser
 	err := row.Scan(
 		&i.ID,

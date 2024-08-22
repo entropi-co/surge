@@ -1,8 +1,10 @@
+create extension pgcrypto;
+
 create schema auth;
 
 create table if not exists auth.users
 (
-    id                 uuid                     not null unique,
+    id                 uuid                     not null unique default gen_random_uuid(),
 
     email              varchar(255)             null unique,
     username           varchar(255)             null unique,

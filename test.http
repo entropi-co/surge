@@ -1,0 +1,12 @@
+### Health check
+GET http://localhost:3000/health
+
+
+### Sign up
+POST http://localhost:3000/v1/sign_up/credentials
+Content-Type: application/json
+
+{
+  "username": "test@example.com",
+  "password": "secretpassword"
+}

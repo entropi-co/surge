@@ -2,11 +2,14 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"github.com/sirupsen/logrus"
 	"net"
 	"net/http"
+	"surge/internal/conf"
 	"surge/internal/schema"
+	"surge/internal/storage"
 	"time"
 )
 
@@ -14,18 +17,28 @@ import (
 type SurgeAPI struct {
 	httpHandler http.Handler
 	version     *string
-	tx          schema.DBTX
+	conn        *sql.DB
+	queries     *schema.Queries
+	config      *conf.SurgeConfigurations
 }
 
 // NewSurgeAPI Creates a new SurgeAPI instance
-func NewSurgeAPI() SurgeAPI {
+func NewSurgeAPI(config *conf.SurgeConfigurations) SurgeAPI {
+	conn := storage.CreateDatabaseConnection(&config.Database)
 	api := SurgeAPI{
 		version: nil,
+		config:  config,
+		conn:    conn,
+		queries: storage.CreateQueries(conn),
 	}
 
 	api.httpHandler = api.createHttpHandler()
 
 	return api
+}
+
+func (a *SurgeAPI) CloseDatabaseConnection() {
+	storage.CloseDatabase(a.conn)
 }
 
 // ListenAndServe starts the REST API with httpHandler
@@ -58,6 +71,8 @@ func (a *SurgeAPI) ListenAndServe(ctx context.Context, hostAndPort string) {
 			log.WithError(err).Error("shutdown failed")
 		}
 	}()
+
+	log.Infof("Listening on %s\n", hostAndPort)
 
 	if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		log.WithError(err).Fatal("http server listen failed")
