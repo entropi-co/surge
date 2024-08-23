@@ -7,6 +7,15 @@ POST http://localhost:3000/v1/sign_up/credentials
 Content-Type: application/json
 
 {
-  "username": "test@example.com",
+  "username": "testuser",
+  "password": "secretpassword"
+}
+
+### Acquire Token
+POST http://localhost:3000/v1/token?grant_type=credentials
+Content-Type: application/json
+
+{
+  "username": "testuser",
   "password": "secretpassword"
 }

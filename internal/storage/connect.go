@@ -2,11 +2,9 @@ package storage
 
 import (
 	"database/sql"
+	_ "github.com/jackc/pgx/v5"
 	"github.com/sirupsen/logrus"
 	"surge/internal/conf"
-	"surge/internal/schema"
-
-	_ "github.com/jackc/pgx/v5"
 )
 
 func CreateDatabaseConnection(config *conf.SurgeDatabaseConfigurations) *sql.DB {
@@ -22,25 +20,5 @@ func CloseDatabase(conn *sql.DB) {
 	err := conn.Close()
 	if err != nil {
 		logrus.WithError(err).Fatalf("Failed to close the database connection\n")
-	}
-}
-
-func CreateQueries(conn *sql.DB) *schema.Queries {
-	return schema.New(conn)
-}
-
-func NewString(value string) sql.NullString {
-	return sql.NullString{String: value, Valid: true}
-}
-
-func NewStringNull() sql.NullString {
-	return sql.NullString{Valid: false}
-}
-
-func NewNullableString(p *string) sql.NullString {
-	if p == nil {
-		return NewStringNull()
-	} else {
-		return NewString(*p)
 	}
 }

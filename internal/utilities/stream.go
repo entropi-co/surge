@@ -8,6 +8,12 @@ func Map[T, U any](ts []T, f func(T) U) []U {
 	return us
 }
 
+func Walk[T any](ts []T, f func(T) []T) {
+	for i := range ts {
+		Walk[T](f(ts[i]), f)
+	}
+}
+
 func Sum[T any](ts []T, f func(T) int) int {
 	var sum = 0
 	for i := range ts {

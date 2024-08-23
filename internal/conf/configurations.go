@@ -19,8 +19,15 @@ type SurgeAuthenticateConfigurations struct {
 	DisablePhoneAuth    bool `default:"false" split_words:"true"`
 }
 
+type SurgeJWTConfigurations struct {
+	ExpiresAfter int `required:"true" split_words:"true"`
+
+	Keys JwkMap `json:"keys"`
+}
+
 type SurgeConfigurations struct {
 	Auth     SurgeAuthenticateConfigurations `split_words:"true"`
+	JWT      SurgeJWTConfigurations          `split_words:"true"`
 	Database SurgeDatabaseConfigurations     `required:"true"`
 }
 

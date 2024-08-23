@@ -13,9 +13,9 @@ import (
 
 type AuthRefreshToken struct {
 	ID        int64
-	UserID    sql.NullString
+	UserID    uuid.NullUUID
 	Token     sql.NullString
-	Revoked   sql.NullBool
+	Revoked   bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -27,4 +27,5 @@ type AuthUser struct {
 	EncryptedPassword sql.NullString
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+	LastSignIn        sql.NullTime
 }

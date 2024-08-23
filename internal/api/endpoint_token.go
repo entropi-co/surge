@@ -1,14 +1,26 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"errors"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"surge/internal/auth"
+	"surge/internal/conf"
 	"surge/internal/schema"
 	"surge/internal/storage"
 	"surge/internal/utilities"
+	"time"
 )
+
+type AccessTokenClaims struct {
+	jwt.RegisteredClaims
+	Email    *string `json:"email"`
+	Username *string `json:"username"`
+}
 
 type TokenGrantType = string
 
@@ -77,9 +89,89 @@ func (a *SurgeAPI) tokenCredentialsGrantFlow(w http.ResponseWriter, r *http.Requ
 		return authorizationErr
 	}
 
-	return nil
+	token, err := a.issueToken(r.Context(), &user)
+	if err != nil {
+		return err
+	}
+
+	return writeResponseJSON(w, http.StatusOK, token)
 }
 
-func (a *SurgeAPI) issueToken(user *schema.AuthUser) {
-	// TODO: Token issue logic
+func (a *SurgeAPI) issueToken(ctx context.Context, user *schema.AuthUser) (*AccessTokenResponse, error) {
+	logger := logrus.WithContext(ctx).WithField("user", user.ID)
+
+	accessTokenString, expiresAt, err := a.generateAccessToken(user)
+	if err != nil {
+		if httpErr, ok := err.(*HTTPError); ok {
+			return nil, httpErr
+		}
+
+		logger.WithError(err).Errorln("failed to generate access token")
+		return nil, internalServerError("failed to generate access token")
+	}
+	refreshToken, err := a.generateRefreshToken(ctx, user)
+	if err != nil {
+		return nil, internalServerError("failed to create refresh token")
+	}
+
+	return &AccessTokenResponse{
+		AccessToken:  accessTokenString,
+		RefreshToken: refreshToken.Token.String,
+		ExpiresIn:    a.config.JWT.ExpiresAfter,
+		ExpiresAt:    expiresAt,
+		User:         NewUserResponse(user),
+	}, nil
+}
+
+func (a SurgeAPI) generateRefreshToken(ctx context.Context, user *schema.AuthUser) (*schema.AuthRefreshToken, error) {
+	logger := logrus.WithContext(ctx).WithField("user", user.ID)
+
+	token, err := a.queries.CreateRefreshToken(ctx, schema.CreateRefreshTokenParams{
+		UserID:  uuid.NullUUID{UUID: user.ID, Valid: user != nil},
+		Token:   storage.NewString(utilities.SecureToken()),
+		Revoked: false,
+	})
+	if err != nil {
+		logger.Errorf("Failed to create refresh token")
+		return nil, err
+	}
+
+	return &token, nil
+}
+
+// generateAccessToken generates token with configured JWKs in configuration and returns (token, expiresAt, error)
+func (a SurgeAPI) generateAccessToken(user *schema.AuthUser) (string, int64, error) {
+	issuedAt := time.Now().UTC()
+	expiresAt := issuedAt.Add(time.Second * time.Duration(a.config.JWT.ExpiresAfter))
+
+	claims := AccessTokenClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   user.ID.String(),
+			IssuedAt:  jwt.NewNumericDate(issuedAt),
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
+		},
+		Email:    storage.NullStringToPointer(user.Email),
+		Username: storage.NullStringToPointer(user.Username),
+	}
+
+	signingKey, err := a.config.JWT.GetSigningJwk()
+	if err != nil {
+		return "", 0, err
+	}
+
+	signingMethod := conf.GetJwkCompatibleAlgorithm(signingKey)
+
+	token := jwt.NewWithClaims(signingMethod, claims)
+
+	rawSigningKey, err := conf.GetSigningKeyFromJwk(signingKey)
+	if err != nil {
+		return "", 0, err
+	}
+
+	signedToken, err := token.SignedString(rawSigningKey)
+	if err != nil {
+		return "", 0, err
+	}
+
+	return signedToken, expiresAt.Unix(), nil
 }

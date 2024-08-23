@@ -3,10 +3,9 @@ package api
 import (
 	"errors"
 	"fmt"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"surge/internal/auth"
 	"surge/internal/utilities"
@@ -32,16 +31,18 @@ func (a *SurgeAPI) EndpointSignUpWithCredentials(w http.ResponseWriter, r *http.
 
 	var validationErrors validator.ValidationErrors
 
-	requestId := middleware.GetReqID(r.Context())
-	log := logrus.WithContext(r.Context()).WithField("req", requestId)
 	queries := a.queries
 
-	log.Infof("Creating user...")
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*body.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return internalServerError("failed to hash password")
+	}
+	hashedPasswordString := string(hashedPassword[:])
 
 	createdUser, err := auth.CreateUser(queries, r.Context(), a.config, auth.CreateUserOptions{
 		Email:    body.Email,
 		Username: body.Username,
-		Password: body.Password,
+		Password: &hashedPasswordString,
 	})
 	if err != nil {
 		switch {

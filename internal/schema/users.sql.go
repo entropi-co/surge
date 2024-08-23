@@ -15,7 +15,7 @@ import (
 const createUser = `-- name: CreateUser :one
 INSERT INTO auth.users(email, username, encrypted_password, created_at, updated_at)
 values ($1, $2, $3, now(), now())
-RETURNING id, email, username, encrypted_password, created_at, updated_at
+RETURNING id, email, username, encrypted_password, created_at, updated_at, last_sign_in
 `
 
 type CreateUserParams struct {
@@ -34,12 +34,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (AuthUse
 		&i.EncryptedPassword,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.LastSignIn,
 	)
 	return i, err
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, email, username, encrypted_password, created_at, updated_at
+SELECT id, email, username, encrypted_password, created_at, updated_at, last_sign_in
 from auth.users
 WHERE id = $1
 `
@@ -54,12 +55,13 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (AuthUser, error) {
 		&i.EncryptedPassword,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.LastSignIn,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, username, encrypted_password, created_at, updated_at
+SELECT id, email, username, encrypted_password, created_at, updated_at, last_sign_in
 from auth.users
 WHERE email = $1
 `
@@ -74,12 +76,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email sql.NullString) (Aut
 		&i.EncryptedPassword,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.LastSignIn,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, email, username, encrypted_password, created_at, updated_at
+SELECT id, email, username, encrypted_password, created_at, updated_at, last_sign_in
 from auth.users
 WHERE username = $1
 `
@@ -94,6 +97,73 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username sql.NullString
 		&i.EncryptedPassword,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.LastSignIn,
+	)
+	return i, err
+}
+
+const updateUser = `-- name: UpdateUser :one
+UPDATE auth.users
+SET email              = coalesce($2, email),
+    username           = coalesce($3, username),
+    encrypted_password = coalesce($4, encrypted_password),
+    created_at         = coalesce($5, created_at),
+    updated_at         = now(),
+    last_sign_in       = coalesce($6, last_sign_in)
+WHERE id = $1
+RETURNING id, email, username, encrypted_password, created_at, updated_at, last_sign_in
+`
+
+type UpdateUserParams struct {
+	ID                uuid.UUID
+	Email             sql.NullString
+	Username          sql.NullString
+	EncryptedPassword sql.NullString
+	CreatedAt         sql.NullTime
+	LastSignIn        sql.NullTime
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (AuthUser, error) {
+	row := q.db.QueryRowContext(ctx, updateUser,
+		arg.ID,
+		arg.Email,
+		arg.Username,
+		arg.EncryptedPassword,
+		arg.CreatedAt,
+		arg.LastSignIn,
+	)
+	var i AuthUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.EncryptedPassword,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastSignIn,
+	)
+	return i, err
+}
+
+const updateUserLastSignIn = `-- name: UpdateUserLastSignIn :one
+update auth.users
+set updated_at   = now(),
+    last_sign_in = now()
+where id = $1
+returning id, email, username, encrypted_password, created_at, updated_at, last_sign_in
+`
+
+func (q *Queries) UpdateUserLastSignIn(ctx context.Context, id uuid.UUID) (AuthUser, error) {
+	row := q.db.QueryRowContext(ctx, updateUserLastSignIn, id)
+	var i AuthUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.EncryptedPassword,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastSignIn,
 	)
 	return i, err
 }
