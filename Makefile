@@ -16,7 +16,8 @@ dev-postgres-standalone-stop:
 
 dev-postgres-standalone-reset:
 	@echo Recreating database 'surge_development'
-	@docker exec -t surge-postgres-standalone psql postgres://postgres:postgres@localhost/surge_development -c '\set AUTOCOMMIT on\drop database surge_development; create database surge_development;'
+	@docker compose -f docker-compose.postgres.yml rm -s -f -v surge-postgres-standalone
+	@make dev-postgres-standalone
 	@echo Recreated
 
 dev-run:
