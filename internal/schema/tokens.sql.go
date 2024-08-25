@@ -24,7 +24,7 @@ type CreateRefreshTokenParams struct {
 	Revoked bool
 }
 
-func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (AuthRefreshToken, error) {
+func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (*AuthRefreshToken, error) {
 	row := q.db.QueryRowContext(ctx, createRefreshToken, arg.UserID, arg.Token, arg.Revoked)
 	var i AuthRefreshToken
 	err := row.Scan(
@@ -35,5 +35,5 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
-	return i, err
+	return &i, err
 }

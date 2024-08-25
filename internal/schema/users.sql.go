@@ -8,44 +8,67 @@ package schema
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO auth.users(email, username, encrypted_password, created_at, updated_at)
-values ($1, $2, $3, now(), now())
-RETURNING id, email, username, encrypted_password, created_at, updated_at, last_sign_in
+insert into auth.users(email, username, encrypted_password, meta_avatar, meta_first_name, meta_last_name,
+                       meta_birthdate,
+                       meta_extra, created_at, updated_at)
+values ($1, $2, $3, $4, $5, $6, $7, $8, now(), now())
+returning id, email, username, encrypted_password, meta_avatar, meta_first_name, meta_last_name, meta_birthdate, meta_extra, created_at, updated_at, last_sign_in
 `
 
 type CreateUserParams struct {
 	Email             sql.NullString
 	Username          sql.NullString
 	EncryptedPassword sql.NullString
+	MetaAvatar        sql.NullString
+	MetaFirstName     sql.NullString
+	MetaLastName      sql.NullString
+	MetaBirthdate     sql.NullTime
+	MetaExtra         json.RawMessage
 }
 
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (AuthUser, error) {
-	row := q.db.QueryRowContext(ctx, createUser, arg.Email, arg.Username, arg.EncryptedPassword)
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (*AuthUser, error) {
+	row := q.db.QueryRowContext(ctx, createUser,
+		arg.Email,
+		arg.Username,
+		arg.EncryptedPassword,
+		arg.MetaAvatar,
+		arg.MetaFirstName,
+		arg.MetaLastName,
+		arg.MetaBirthdate,
+		arg.MetaExtra,
+	)
 	var i AuthUser
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
 		&i.Username,
 		&i.EncryptedPassword,
+		&i.MetaAvatar,
+		&i.MetaFirstName,
+		&i.MetaLastName,
+		&i.MetaBirthdate,
+		&i.MetaExtra,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastSignIn,
 	)
-	return i, err
+	return &i, err
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, email, username, encrypted_password, created_at, updated_at, last_sign_in
+select id, email, username, encrypted_password, meta_avatar, meta_first_name, meta_last_name, meta_birthdate, meta_extra, created_at, updated_at, last_sign_in
 from auth.users
-WHERE id = $1
+where id = $1
 `
 
-func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (AuthUser, error) {
+func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (*AuthUser, error) {
 	row := q.db.QueryRowContext(ctx, getUser, id)
 	var i AuthUser
 	err := row.Scan(
@@ -53,20 +76,25 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (AuthUser, error) {
 		&i.Email,
 		&i.Username,
 		&i.EncryptedPassword,
+		&i.MetaAvatar,
+		&i.MetaFirstName,
+		&i.MetaLastName,
+		&i.MetaBirthdate,
+		&i.MetaExtra,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastSignIn,
 	)
-	return i, err
+	return &i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, username, encrypted_password, created_at, updated_at, last_sign_in
+select id, email, username, encrypted_password, meta_avatar, meta_first_name, meta_last_name, meta_birthdate, meta_extra, created_at, updated_at, last_sign_in
 from auth.users
-WHERE email = $1
+where email = $1
 `
 
-func (q *Queries) GetUserByEmail(ctx context.Context, email sql.NullString) (AuthUser, error) {
+func (q *Queries) GetUserByEmail(ctx context.Context, email sql.NullString) (*AuthUser, error) {
 	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
 	var i AuthUser
 	err := row.Scan(
@@ -74,20 +102,25 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email sql.NullString) (Aut
 		&i.Email,
 		&i.Username,
 		&i.EncryptedPassword,
+		&i.MetaAvatar,
+		&i.MetaFirstName,
+		&i.MetaLastName,
+		&i.MetaBirthdate,
+		&i.MetaExtra,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastSignIn,
 	)
-	return i, err
+	return &i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, email, username, encrypted_password, created_at, updated_at, last_sign_in
+select id, email, username, encrypted_password, meta_avatar, meta_first_name, meta_last_name, meta_birthdate, meta_extra, created_at, updated_at, last_sign_in
 from auth.users
-WHERE username = $1
+where username = $1
 `
 
-func (q *Queries) GetUserByUsername(ctx context.Context, username sql.NullString) (AuthUser, error) {
+func (q *Queries) GetUserByUsername(ctx context.Context, username sql.NullString) (*AuthUser, error) {
 	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
 	var i AuthUser
 	err := row.Scan(
@@ -95,23 +128,29 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username sql.NullString
 		&i.Email,
 		&i.Username,
 		&i.EncryptedPassword,
+		&i.MetaAvatar,
+		&i.MetaFirstName,
+		&i.MetaLastName,
+		&i.MetaBirthdate,
+		&i.MetaExtra,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastSignIn,
 	)
-	return i, err
+	return &i, err
 }
 
 const updateUser = `-- name: UpdateUser :one
-UPDATE auth.users
-SET email              = coalesce($2, email),
+update auth.users
+set email              = coalesce($2, email),
     username           = coalesce($3, username),
     encrypted_password = coalesce($4, encrypted_password),
+
     created_at         = coalesce($5, created_at),
     updated_at         = now(),
     last_sign_in       = coalesce($6, last_sign_in)
-WHERE id = $1
-RETURNING id, email, username, encrypted_password, created_at, updated_at, last_sign_in
+where id = $1
+returning id, email, username, encrypted_password, meta_avatar, meta_first_name, meta_last_name, meta_birthdate, meta_extra, created_at, updated_at, last_sign_in
 `
 
 type UpdateUserParams struct {
@@ -123,7 +162,7 @@ type UpdateUserParams struct {
 	LastSignIn        sql.NullTime
 }
 
-func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (AuthUser, error) {
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (*AuthUser, error) {
 	row := q.db.QueryRowContext(ctx, updateUser,
 		arg.ID,
 		arg.Email,
@@ -138,11 +177,16 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (AuthUse
 		&i.Email,
 		&i.Username,
 		&i.EncryptedPassword,
+		&i.MetaAvatar,
+		&i.MetaFirstName,
+		&i.MetaLastName,
+		&i.MetaBirthdate,
+		&i.MetaExtra,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastSignIn,
 	)
-	return i, err
+	return &i, err
 }
 
 const updateUserLastSignIn = `-- name: UpdateUserLastSignIn :one
@@ -150,10 +194,10 @@ update auth.users
 set updated_at   = now(),
     last_sign_in = now()
 where id = $1
-returning id, email, username, encrypted_password, created_at, updated_at, last_sign_in
+returning id, email, username, encrypted_password, meta_avatar, meta_first_name, meta_last_name, meta_birthdate, meta_extra, created_at, updated_at, last_sign_in
 `
 
-func (q *Queries) UpdateUserLastSignIn(ctx context.Context, id uuid.UUID) (AuthUser, error) {
+func (q *Queries) UpdateUserLastSignIn(ctx context.Context, id uuid.UUID) (*AuthUser, error) {
 	row := q.db.QueryRowContext(ctx, updateUserLastSignIn, id)
 	var i AuthUser
 	err := row.Scan(
@@ -161,9 +205,61 @@ func (q *Queries) UpdateUserLastSignIn(ctx context.Context, id uuid.UUID) (AuthU
 		&i.Email,
 		&i.Username,
 		&i.EncryptedPassword,
+		&i.MetaAvatar,
+		&i.MetaFirstName,
+		&i.MetaLastName,
+		&i.MetaBirthdate,
+		&i.MetaExtra,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastSignIn,
 	)
-	return i, err
+	return &i, err
+}
+
+const updateUserMetadata = `-- name: UpdateUserMetadata :one
+update auth.users
+set meta_avatar     = coalesce($2, meta_avatar),
+    meta_first_name = coalesce($3, meta_first_name),
+    meta_last_name  = coalesce($4, meta_first_name),
+    meta_birthdate  = coalesce($5, meta_first_name),
+    meta_extra      = coalesce($6, meta_extra)
+where id = $1
+returning id, email, username, encrypted_password, meta_avatar, meta_first_name, meta_last_name, meta_birthdate, meta_extra, created_at, updated_at, last_sign_in
+`
+
+type UpdateUserMetadataParams struct {
+	ID            uuid.UUID
+	MetaAvatar    sql.NullString
+	MetaFirstName sql.NullString
+	MetaLastName  sql.NullString
+	MetaBirthdate sql.NullTime
+	MetaExtra     pqtype.NullRawMessage
+}
+
+func (q *Queries) UpdateUserMetadata(ctx context.Context, arg UpdateUserMetadataParams) (*AuthUser, error) {
+	row := q.db.QueryRowContext(ctx, updateUserMetadata,
+		arg.ID,
+		arg.MetaAvatar,
+		arg.MetaFirstName,
+		arg.MetaLastName,
+		arg.MetaBirthdate,
+		arg.MetaExtra,
+	)
+	var i AuthUser
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.EncryptedPassword,
+		&i.MetaAvatar,
+		&i.MetaFirstName,
+		&i.MetaLastName,
+		&i.MetaBirthdate,
+		&i.MetaExtra,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastSignIn,
+	)
+	return &i, err
 }

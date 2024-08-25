@@ -132,7 +132,7 @@ func GetJwkCompatibleAlgorithm(key jwk.Key) jwt.SigningMethod {
 
 func GetSigningKeyFromJwk(key jwk.Key) (any, error) {
 	var raw any
-	if err := key.Raw(&key); err != nil {
+	if err := key.Raw(&raw); err != nil {
 		return nil, err
 	}
 	return raw, nil

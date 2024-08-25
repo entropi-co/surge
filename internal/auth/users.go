@@ -3,18 +3,31 @@ package auth
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"github.com/go-playground/validator/v10"
 	"golang.org/x/crypto/bcrypt"
+	"surge/internal/api/provider"
 	"surge/internal/conf"
 	"surge/internal/schema"
 	"surge/internal/storage"
+	"time"
 )
+
+type UserMetadata struct {
+	Avatar    *string
+	FirstName *string
+	LastName  *string
+	Birthdate *time.Time
+	Extra     map[string]interface{}
+}
 
 type CreateUserOptions struct {
 	Email    *string `validate:"email,lte=255"`
 	Username *string `validate:"gte=3,lte=20"`
+	Phone    *string `validate:"e164"`
 	Password *string `validate:"required,gte=8,lte=255"`
+	Metadata UserMetadata
 }
 
 func (o CreateUserOptions) validate() error {
@@ -24,11 +37,21 @@ func (o CreateUserOptions) validate() error {
 
 	validate := validator.New()
 
+	var fieldsToExclude []string
 	if o.Email == nil {
-		return validate.StructExcept(o, "Email")
-	} else {
-		return validate.Struct(o)
+		fieldsToExclude = append(fieldsToExclude, "Email")
 	}
+	if o.Phone == nil {
+		fieldsToExclude = append(fieldsToExclude, "Phone")
+	}
+
+	return validate.StructExcept(o, fieldsToExclude...)
+}
+
+type CreateUserAndIdentityOptions struct {
+	Provider          string
+	ProviderAccountID string
+	ProviderData      provider.UserData
 }
 
 func (o CreateUserOptions) validateWithConfig(config *conf.SurgeConfigurations) error {
@@ -42,7 +65,9 @@ func (o CreateUserOptions) validateWithConfig(config *conf.SurgeConfigurations) 
 	if config.Auth.CredentialsRequireUsername && o.Username == nil {
 		return ErrRequiredUsername
 	}
-	// TODO: Validate if phone field is required
+	if config.Auth.CredentialsRequirePhone && o.Phone == nil {
+		return ErrRequiredPhone
+	}
 
 	return nil
 }
@@ -74,12 +99,17 @@ func CreateUser(queries *schema.Queries, ctx context.Context, config *conf.Surge
 		Email:             storage.NewNullableString(options.Email),
 		Username:          storage.NewNullableString(options.Username),
 		EncryptedPassword: storage.NewNullableString(options.Password),
+
+		MetaAvatar:    storage.NewNullableString(options.Metadata.Avatar),
+		MetaFirstName: storage.NewNullableString(options.Metadata.FirstName),
+		MetaLastName:  storage.NewNullableString(options.Metadata.LastName),
+		MetaBirthdate: storage.NewNullableTime(options.Metadata.Birthdate),
 	})
 	if err != nil {
 		return nil, ErrDatabaseJob
 	}
 
-	return &result, err
+	return result, err
 }
 
 func AuthenticateUser(user *schema.AuthUser, password string) bool {
@@ -87,4 +117,36 @@ func AuthenticateUser(user *schema.AuthUser, password string) bool {
 		return false
 	}
 	return bcrypt.CompareHashAndPassword([]byte(user.EncryptedPassword.String), []byte(password)) == nil
+}
+
+func CreateUserAndIdentity(queries *schema.Queries, ctx context.Context, options CreateUserAndIdentityOptions) (*schema.AuthUser, *schema.AuthIdentity, error) {
+	firstName := options.ProviderData.Claims.GivenName
+	lastName := options.ProviderData.Claims.FamilyName
+	avatarUrl := options.ProviderData.Claims.Picture
+
+	user, err := queries.CreateUser(ctx, schema.CreateUserParams{
+		MetaFirstName: sql.NullString{String: firstName, Valid: firstName != ""},
+		MetaLastName:  sql.NullString{String: lastName, Valid: lastName != ""},
+		MetaAvatar:    sql.NullString{String: avatarUrl, Valid: avatarUrl != ""},
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	marshalledJson, err := json.Marshal(options.ProviderData)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	identity, err := queries.CreateIdentityWithUser(ctx, schema.CreateIdentityWithUserParams{
+		UserID:       user.ID,
+		Provider:     options.Provider,
+		ProviderID:   options.ProviderAccountID,
+		ProviderData: marshalledJson,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return user, identity, nil
 }

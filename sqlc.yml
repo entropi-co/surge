@@ -7,3 +7,4 @@ sql:
       go:
         package: "schema"
         out: "internal/schema"
+        emit_result_struct_pointers: true

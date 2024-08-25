@@ -15,7 +15,15 @@ import (
 type signUpWithCredentialsBody struct {
 	Username *string `json:"username"`
 	Email    *string `json:"email"`
+	Phone    *string `json:"phone"`
 	Password *string `json:"password"`
+
+	Metadata struct {
+		Avatar    *string    `json:"avatar"`
+		FirstName *string    `json:"first_name"`
+		LastName  *string    `json:"last_name"`
+		Birthdate *time.Time `json:"birthdate"`
+	}
 }
 
 type signUpResponseBody struct {
@@ -35,7 +43,7 @@ func (a *SurgeAPI) EndpointSignUpWithCredentials(w http.ResponseWriter, r *http.
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*body.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return internalServerError("failed to hash password")
+		return InternalServerError("failed to hash password")
 	}
 	hashedPasswordString := string(hashedPassword[:])
 
@@ -43,23 +51,29 @@ func (a *SurgeAPI) EndpointSignUpWithCredentials(w http.ResponseWriter, r *http.
 		Email:    body.Email,
 		Username: body.Username,
 		Password: &hashedPasswordString,
+		Metadata: auth.UserMetadata{
+			Avatar:    body.Metadata.Avatar,
+			FirstName: body.Metadata.FirstName,
+			LastName:  body.Metadata.LastName,
+			Birthdate: body.Metadata.Birthdate,
+		},
 	})
 	if err != nil {
 		switch {
 		case errors.Is(auth.ErrMissingField, err):
 		case errors.Is(auth.ErrRequiredUsername, err):
 		case errors.Is(auth.ErrRequiredEmail, err):
-			return badRequestError(ErrorCodeMissingField, err.Error())
+			return BadRequestError(ErrorCodeMissingField, err.Error())
 		case errors.Is(auth.ErrInvalidEmail, err):
 		case errors.Is(auth.ErrInvalidUsername, err):
 		case errors.Is(auth.ErrInvalidPassword, err):
-			return badRequestError(ErrorCodeInvalidField, err.Error())
+			return BadRequestError(ErrorCodeInvalidField, err.Error())
 		case errors.Is(auth.ErrDuplicateEmail, err):
 		case errors.Is(auth.ErrDuplicateUsername, err):
 		case errors.Is(auth.ErrDuplicatePhone, err):
-			return conflictError(err.Error())
+			return ConflictError(err.Error())
 		case errors.Is(auth.ErrDatabaseJob, err):
-			return internalServerError("failed to do database action")
+			return InternalServerError("failed to do database action")
 		case errors.As(err, &validationErrors):
 			httpErr := NewBuilder().
 				UseRequest(r).
@@ -80,7 +94,7 @@ func (a *SurgeAPI) EndpointSignUpWithCredentials(w http.ResponseWriter, r *http.
 			return httpErr
 		}
 
-		return internalServerError("unknown error during creating user")
+		return InternalServerError("unknown error during creating user")
 	}
 
 	return writeResponseJSON(w, http.StatusOK,

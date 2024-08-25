@@ -6,10 +6,23 @@ package schema
 
 import (
 	"database/sql"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+type AuthIdentity struct {
+	ID           uuid.UUID
+	UserID       uuid.UUID
+	Data         json.RawMessage
+	Provider     string
+	ProviderID   string
+	ProviderData json.RawMessage
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	LastSignIn   sql.NullTime
+}
 
 type AuthRefreshToken struct {
 	ID        int64
@@ -25,6 +38,11 @@ type AuthUser struct {
 	Email             sql.NullString
 	Username          sql.NullString
 	EncryptedPassword sql.NullString
+	MetaAvatar        sql.NullString
+	MetaFirstName     sql.NullString
+	MetaLastName      sql.NullString
+	MetaBirthdate     sql.NullTime
+	MetaExtra         json.RawMessage
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	LastSignIn        sql.NullTime

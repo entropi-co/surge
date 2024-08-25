@@ -1,8 +1,8 @@
-### Health check
+### Health Check
 GET http://localhost:3000/health
 
 
-### Sign up
+### Sign Up
 POST http://localhost:3000/v1/sign_up/credentials
 Content-Type: application/json
 
@@ -19,3 +19,10 @@ Content-Type: application/json
   "username": "testuser",
   "password": "secretpassword"
 }
+
+### Get External OAuth2 Url
+GET http://localhost:3000/v1/external?no_redirect=true&provider=google
+Referer: https://google.com
+
+### Redirect To External OAuth2 Url
+GET http://localhost:3000/v1/external

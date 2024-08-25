@@ -34,7 +34,7 @@ type tokenCredentialsGrantTypeBody struct {
 	Password *string `json:"password"`
 }
 
-// EndpointToken endpoint used to log in a user and respond with token
+// EndpointToken endpoint used to log in a user and respond with accessToken
 func (a *SurgeAPI) EndpointToken(w http.ResponseWriter, r *http.Request) error {
 	grantType := r.URL.Query().Get("grant_type")
 
@@ -42,13 +42,13 @@ func (a *SurgeAPI) EndpointToken(w http.ResponseWriter, r *http.Request) error {
 	case TokenGrantTypeCredentials:
 		return a.tokenCredentialsGrantFlow(w, r)
 	default:
-		return badRequestError(ErrorCodeInvalidGrantType, "invalid grant type '%s'", grantType)
+		return BadRequestError(ErrorCodeInvalidGrantType, "invalid grant type '%s'", grantType)
 	}
 }
 
 // tokenCredentialsGrantFlow processes grant flow with username/email and password
 func (a *SurgeAPI) tokenCredentialsGrantFlow(w http.ResponseWriter, r *http.Request) error {
-	authorizationErr := unauthorizedError(ErrorCodeInvalidCredentials, "failed to find matching user with the credentials")
+	authorizationErr := UnauthorizedError(ErrorCodeInvalidCredentials, "failed to find matching user with the credentials")
 
 	body, err := utilities.GetBodyJson[tokenCredentialsGrantTypeBody](r)
 	if err != nil {
@@ -57,22 +57,22 @@ func (a *SurgeAPI) tokenCredentialsGrantFlow(w http.ResponseWriter, r *http.Requ
 
 	// Email and Username field is provided at the same time
 	if utilities.CountNotNil([]*string{body.Email, body.Username}) != 1 {
-		return badRequestError(ErrorCodeInvalidJSON, "email or username can't be provided at the same time")
+		return BadRequestError(ErrorCodeInvalidJSON, "email or username can't be provided at the same time")
 	}
 
-	var user schema.AuthUser
+	var user *schema.AuthUser
 
 	if body.Email != nil {
 		// Abort if email auth is disabled
 		if a.config.Auth.DisableEmailAuth {
-			return unprocessableEntityError(ErrorCodeDisabledGrantType, "email authentication is disabled")
+			return UnprocessableEntityError(ErrorCodeDisabledGrantType, "email authentication is disabled")
 		}
 
 		user, err = a.queries.GetUserByEmail(r.Context(), storage.NewString(*body.Email))
 	} else if body.Username != nil {
 		// Abort if username auth is disabled
 		if a.config.Auth.DisableUsernameAuth {
-			return unprocessableEntityError(ErrorCodeDisabledGrantType, "username authentication is disabled")
+			return UnprocessableEntityError(ErrorCodeDisabledGrantType, "username authentication is disabled")
 		}
 
 		user, err = a.queries.GetUserByUsername(r.Context(), storage.NewString(*body.Username))
@@ -82,14 +82,14 @@ func (a *SurgeAPI) tokenCredentialsGrantFlow(w http.ResponseWriter, r *http.Requ
 		if errors.Is(err, sql.ErrNoRows) {
 			return authorizationErr
 		}
-		return httpError(http.StatusInternalServerError, ErrorCodeDatabaseFailure, "unexpected database failure")
+		return NewHTTPError(http.StatusInternalServerError, ErrorCodeDatabaseFailure, "unexpected database failure")
 	}
 
-	if !auth.AuthenticateUser(&user, *body.Password) {
+	if !auth.AuthenticateUser(user, *body.Password) {
 		return authorizationErr
 	}
 
-	token, err := a.issueToken(r.Context(), &user)
+	token, err := a.issueToken(r.Context(), user)
 	if err != nil {
 		return err
 	}
@@ -102,16 +102,17 @@ func (a *SurgeAPI) issueToken(ctx context.Context, user *schema.AuthUser) (*Acce
 
 	accessTokenString, expiresAt, err := a.generateAccessToken(user)
 	if err != nil {
-		if httpErr, ok := err.(*HTTPError); ok {
+		var httpErr *HTTPError
+		if errors.As(err, &httpErr) {
 			return nil, httpErr
 		}
 
-		logger.WithError(err).Errorln("failed to generate access token")
-		return nil, internalServerError("failed to generate access token")
+		logger.WithError(err).Errorln("failed to generate access accessToken")
+		return nil, InternalServerError("failed to generate access accessToken")
 	}
 	refreshToken, err := a.generateRefreshToken(ctx, user)
 	if err != nil {
-		return nil, internalServerError("failed to create refresh token")
+		return nil, InternalServerError("failed to create refresh accessToken")
 	}
 
 	return &AccessTokenResponse{
@@ -123,7 +124,7 @@ func (a *SurgeAPI) issueToken(ctx context.Context, user *schema.AuthUser) (*Acce
 	}, nil
 }
 
-func (a SurgeAPI) generateRefreshToken(ctx context.Context, user *schema.AuthUser) (*schema.AuthRefreshToken, error) {
+func (a *SurgeAPI) generateRefreshToken(ctx context.Context, user *schema.AuthUser) (*schema.AuthRefreshToken, error) {
 	logger := logrus.WithContext(ctx).WithField("user", user.ID)
 
 	token, err := a.queries.CreateRefreshToken(ctx, schema.CreateRefreshTokenParams{
@@ -132,15 +133,17 @@ func (a SurgeAPI) generateRefreshToken(ctx context.Context, user *schema.AuthUse
 		Revoked: false,
 	})
 	if err != nil {
-		logger.Errorf("Failed to create refresh token")
+		logger.Errorf("Failed to create refresh accessToken")
 		return nil, err
 	}
 
-	return &token, nil
+	return token, nil
 }
 
-// generateAccessToken generates token with configured JWKs in configuration and returns (token, expiresAt, error)
-func (a SurgeAPI) generateAccessToken(user *schema.AuthUser) (string, int64, error) {
+// generateAccessToken generates accessToken with configured JWKs in configuration and returns (accessToken, expiresAt, error)
+func (a *SurgeAPI) generateAccessToken(user *schema.AuthUser) (string, int64, error) {
+	//logger := logrus.WithField("user", user.ID).WithField("where", "access_token_generation")
+
 	issuedAt := time.Now().UTC()
 	expiresAt := issuedAt.Add(time.Second * time.Duration(a.config.JWT.ExpiresAfter))
 
@@ -154,6 +157,7 @@ func (a SurgeAPI) generateAccessToken(user *schema.AuthUser) (string, int64, err
 		Username: storage.NullStringToPointer(user.Username),
 	}
 
+	// Acquire signing JWK
 	signingKey, err := a.config.JWT.GetSigningJwk()
 	if err != nil {
 		return "", 0, err
@@ -161,13 +165,17 @@ func (a SurgeAPI) generateAccessToken(user *schema.AuthUser) (string, int64, err
 
 	signingMethod := conf.GetJwkCompatibleAlgorithm(signingKey)
 
+	// Create accessToken with claims
 	token := jwt.NewWithClaims(signingMethod, claims)
 
+	jwt.MarshalSingleStringAsArray = false
+	// Acquire raw signing key from JWK
 	rawSigningKey, err := conf.GetSigningKeyFromJwk(signingKey)
 	if err != nil {
 		return "", 0, err
 	}
 
+	// Sign accessToken
 	signedToken, err := token.SignedString(rawSigningKey)
 	if err != nil {
 		return "", 0, err

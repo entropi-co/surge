@@ -10,7 +10,6 @@ const (
 	ErrorCodeUnexpectedFailure ErrorCode = "unexpected_failure"
 	ErrorCodeDatabaseFailure   ErrorCode = "database_failure"
 
-	ErrorCodeBadJSON      ErrorCode = "bad_json"
 	ErrorCodeInvalidJSON  ErrorCode = "invalid_json"
 	ErrorCodeMissingField ErrorCode = "missing_field"
 	ErrorCodeInvalidField ErrorCode = "invalid_field"
@@ -21,4 +20,13 @@ const (
 
 	ErrorCodeInvalidGrantType  ErrorCode = "invalid_grant_type"
 	ErrorCodeDisabledGrantType ErrorCode = "disabled_grant_type"
+
+	ErrorCodeInvalidProviderType ErrorCode = "invalid_provider_type"
+
+	ErrorCodeBadOAuth2State    ErrorCode = "bad_oauth2_state"
+	ErrorCodeBadOAuth2Callback ErrorCode = "bad_oauth2_callback"
+
+	ErrorCodeProviderOAuth2Unsupported ErrorCode = "provider_oauth2_unsupported"
+
+	ErrorCodeNotFoundUser ErrorCode = "not_found_user"
 )

@@ -1,12 +1,10 @@
 package api
 
 import (
-	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/cors"
 	"github.com/sirupsen/logrus"
 	"net/http"
-	"surge/internal/utilities"
 )
 
 func (a *SurgeAPI) createHttpHandler() http.Handler {
@@ -24,30 +22,38 @@ func (a *SurgeAPI) createRouter() *SurgeAPIRouter {
 	router := NewSurgeAPIRouter()
 	router.UseBypass(middleware.RequestID)
 
+	if a.config.Logging.EnableRequest {
+		router.UseRequestLogging()
+		logger.Infoln("Enabled request logging")
+	}
+
 	router.Get("/health", a.EndpointHealth)
+	router.Get("/.well-known/jwks.json", a.EndpointJwks)
 
 	router.Route("/v1", func(router *SurgeAPIRouter) {
 		router.Route("/sign_up", func(router *SurgeAPIRouter) {
 			router.Post("/credentials", a.EndpointSignUpWithCredentials)
 		})
 
-		router.Post("/token", a.EndpointToken)
+		router.Post("/accessToken", a.EndpointToken)
+
+		router.Route("/external", func(router *SurgeAPIRouter) {
+			router.Get("/", a.EndpointExternal)
+
+			router.Route("/callback", func(router *SurgeAPIRouter) {
+				router.Use(a.loadOAuth2StateToContextMiddleware)
+
+				router.Get("/", a.EndpointExternalCallback)
+				router.Post("/", a.EndpointExternalCallback)
+			})
+		})
 	})
 
-	var totalRouteNodes = 0
-	var totalRouteEndpoints = 0
-	utilities.Walk(router.chi.Routes(), func(route chi.Route) []chi.Route {
-		if route.SubRoutes == nil {
-			totalRouteNodes++
-			totalRouteEndpoints++
-			return []chi.Route{}
-		}
-
-		totalRouteNodes++
-		return route.SubRoutes.Routes()
-	})
-
-	logger.Infof("Created router with %d nodes, %d endpoints", totalRouteNodes, totalRouteEndpoints)
+	totalRouteNodes, totalRouteEndpoints := router.CountNodes()
+	logger.
+		WithField("nodes", totalRouteNodes).
+		WithField("endpoints", totalRouteEndpoints).
+		Infoln("Created router")
 
 	return router
 }

@@ -3,7 +3,9 @@ package api
 import (
 	"context"
 	"github.com/go-chi/chi/v5"
+	"github.com/sirupsen/logrus"
 	"net/http"
+	"surge/internal/utilities"
 )
 
 type SurgeAPIRouter struct {
@@ -46,12 +48,40 @@ func (r *SurgeAPIRouter) WithBypass(fn func(next http.Handler) http.Handler) *Su
 func (r *SurgeAPIRouter) Use(fn middlewareHandler) {
 	r.chi.Use(wrapAsMiddleware(fn))
 }
+
 func (r *SurgeAPIRouter) UseBypass(fn func(next http.Handler) http.Handler) {
 	r.chi.Use(fn)
+}
+func (r *SurgeAPIRouter) UseRequestLogging() {
+	r.Use(func(w http.ResponseWriter, r *http.Request) (context.Context, error) {
+		logrus.
+			WithContext(r.Context()).
+			WithField("agent", r.UserAgent()).
+			Infof("Request: %s %s", r.Method, r.URL.Path)
+
+		return r.Context(), nil
+	})
 }
 
 func (r *SurgeAPIRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.chi.ServeHTTP(w, req)
+}
+
+func (r *SurgeAPIRouter) CountNodes() (int, int) {
+	var totalRouteNodes = 0
+	var totalRouteEndpoints = 0
+	utilities.Walk(r.chi.Routes(), func(route chi.Route) []chi.Route {
+		if route.SubRoutes == nil {
+			totalRouteNodes++
+			totalRouteEndpoints++
+			return []chi.Route{}
+		}
+
+		totalRouteNodes++
+		return route.SubRoutes.Routes()
+	})
+
+	return totalRouteNodes, totalRouteEndpoints
 }
 
 type surgeAPIHandler func(w http.ResponseWriter, r *http.Request) error

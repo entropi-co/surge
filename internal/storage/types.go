@@ -26,6 +26,22 @@ func NewNullableString(p *string) sql.NullString {
 	}
 }
 
+func NewTime(v time.Time) sql.NullTime {
+	return sql.NullTime{Time: v, Valid: true}
+}
+
+func NewTimeNull() sql.NullTime {
+	return sql.NullTime{Valid: false}
+}
+
+func NewNullableTime(p *time.Time) sql.NullTime {
+	if p == nil {
+		return NewTimeNull()
+	} else {
+		return NewTime(*p)
+	}
+}
+
 func NullStringToPointer(str sql.NullString) *string {
 	if str.Valid {
 		return &str.String

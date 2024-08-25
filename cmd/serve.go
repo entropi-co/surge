@@ -20,9 +20,15 @@ func buildServeCommand() *cobra.Command {
 func handleServeCommand(cmd *cobra.Command, args []string) error {
 	config, err := conf.LoadFromEnvironments()
 	if err != nil {
-		logrus.WithError(err).Warn("Failed to load configuration from environments\n")
+		logrus.WithError(err).Fatal("Failed to load configuration from environments\n")
+		return nil
 	} else {
 		logrus.Println("Loaded configuration from environments")
+	}
+
+	if config.Logging.EnableDebug {
+		logrus.SetLevel(logrus.DebugLevel)
+		logrus.Debugln("EnableDebug debugging")
 	}
 
 	surgeAPI := api.NewSurgeAPI(config)
