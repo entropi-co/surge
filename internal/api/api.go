@@ -47,7 +47,7 @@ func (a *SurgeAPI) CloseDatabaseConnection() {
 func (a *SurgeAPI) ListenAndServe(ctx context.Context, hostAndPort string) {
 	baseCtx, cancel := context.WithCancel(context.Background())
 
-	log := logrus.WithField("component", "api")
+	logger := logrus.WithField("component", "api")
 
 	server := &http.Server{
 		Addr:              hostAndPort,
@@ -70,14 +70,14 @@ func (a *SurgeAPI) ListenAndServe(ctx context.Context, hostAndPort string) {
 		defer shutdownCancel()
 
 		if err := server.Shutdown(shutdownCtx); err != nil && !errors.Is(err, context.Canceled) {
-			log.WithError(err).Error("shutdown failed")
+			logger.WithError(err).Error("shutdown failed")
 		}
 	}()
 
-	log.Infof("Listening on %s\n", hostAndPort)
+	logger.Infof("Listening on %s\n", hostAndPort)
 
 	if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-		log.WithError(err).Fatal("http server listen failed")
+		logger.WithError(err).Fatal("http server listen failed")
 	}
 }
 

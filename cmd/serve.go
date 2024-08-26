@@ -34,6 +34,6 @@ func handleServeCommand(cmd *cobra.Command, args []string) error {
 	surgeAPI := api.NewSurgeAPI(config)
 	defer surgeAPI.CloseDatabaseConnection()
 
-	surgeAPI.ListenAndServe(cmd.Context(), "0.0.0.0:3000")
+	surgeAPI.ListenAndServe(cmd.Context(), config.Host)
 	return nil
 }

@@ -56,7 +56,9 @@ type SurgeConfigurations struct {
 	Database SurgeDatabaseConfigurations `required:"true"`
 	External SurgeExternalConfigurations
 
-	ServiceURL      string               `required:"true" split_words:"true"`
+	ServiceURL string `required:"true" split_words:"true"`
+	Host       string `default:"0.0.0.0:3000"`
+
 	URIAllowListMap map[string]glob.Glob `split_words:"true"`
 	URIAllowList    []string             `json:"uri_allow_list" split_words:"true"`
 
