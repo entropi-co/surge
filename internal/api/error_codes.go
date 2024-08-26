@@ -28,5 +28,11 @@ const (
 
 	ErrorCodeProviderOAuth2Unsupported ErrorCode = "provider_oauth2_unsupported"
 
-	ErrorCodeNotFoundUser ErrorCode = "not_found_user"
+	ErrorCodeUserNotFound ErrorCode = "user_not_found"
+
+	ErrorCodeRefreshNotFoundToken ErrorCode = "refresh_token_not_found"
+	ErrorCodeRefreshTokenRevoked  ErrorCode = "refresh_token_revoked"
+
+	ErrorCodeNoAuthorization ErrorCode = "no_authorization"
+	ErrorCodeBadJWT          ErrorCode = "bad_jwt"
 )

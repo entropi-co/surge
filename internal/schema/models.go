@@ -35,6 +35,7 @@ type AuthRefreshToken struct {
 
 type AuthUser struct {
 	ID                uuid.UUID
+	Phone             interface{}
 	Email             sql.NullString
 	Username          sql.NullString
 	EncryptedPassword sql.NullString

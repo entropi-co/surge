@@ -26,12 +26,17 @@ type TokenGrantType = string
 
 const (
 	TokenGrantTypeCredentials TokenGrantType = "credentials"
+	TokenGrantTypeRefresh     TokenGrantType = "refresh"
 )
 
-type tokenCredentialsGrantTypeBody struct {
+type tokenCredentialsGrantTypeRequest struct {
 	Username *string `json:"username"`
 	Email    *string `json:"email"`
 	Password *string `json:"password"`
+}
+
+type tokenRefreshGrantTypeRequest struct {
+	RefreshToken string `json:"refresh_token"`
 }
 
 // EndpointToken endpoint used to log in a user and respond with accessToken
@@ -41,6 +46,8 @@ func (a *SurgeAPI) EndpointToken(w http.ResponseWriter, r *http.Request) error {
 	switch grantType {
 	case TokenGrantTypeCredentials:
 		return a.tokenCredentialsGrantFlow(w, r)
+	case TokenGrantTypeRefresh:
+		return a.tokenRefreshGrantFlow(w, r)
 	default:
 		return BadRequestError(ErrorCodeInvalidGrantType, "invalid grant type '%s'", grantType)
 	}
@@ -50,7 +57,7 @@ func (a *SurgeAPI) EndpointToken(w http.ResponseWriter, r *http.Request) error {
 func (a *SurgeAPI) tokenCredentialsGrantFlow(w http.ResponseWriter, r *http.Request) error {
 	authorizationErr := UnauthorizedError(ErrorCodeInvalidCredentials, "failed to find matching user with the credentials")
 
-	body, err := utilities.GetBodyJson[tokenCredentialsGrantTypeBody](r)
+	body, err := utilities.GetBodyJson[tokenCredentialsGrantTypeRequest](r)
 	if err != nil {
 		return err
 	}
@@ -68,14 +75,14 @@ func (a *SurgeAPI) tokenCredentialsGrantFlow(w http.ResponseWriter, r *http.Requ
 			return UnprocessableEntityError(ErrorCodeDisabledGrantType, "email authentication is disabled")
 		}
 
-		user, err = a.queries.GetUserByEmail(r.Context(), storage.NewString(*body.Email))
+		user, err = a.queries.GetUserByEmail(r.Context(), *body.Email)
 	} else if body.Username != nil {
 		// Abort if username auth is disabled
 		if a.config.Auth.DisableUsernameAuth {
 			return UnprocessableEntityError(ErrorCodeDisabledGrantType, "username authentication is disabled")
 		}
 
-		user, err = a.queries.GetUserByUsername(r.Context(), storage.NewString(*body.Username))
+		user, err = a.queries.GetUserByUsername(r.Context(), *body.Username)
 	}
 
 	if err != nil {
@@ -97,6 +104,51 @@ func (a *SurgeAPI) tokenCredentialsGrantFlow(w http.ResponseWriter, r *http.Requ
 	return writeResponseJSON(w, http.StatusOK, token)
 }
 
+func (a *SurgeAPI) tokenRefreshGrantFlow(w http.ResponseWriter, r *http.Request) error {
+	body, err := utilities.GetBodyJson[tokenRefreshGrantTypeRequest](r)
+	if err != nil {
+		return err
+	}
+
+	if body.RefreshToken == "" {
+		return BadRequestError(ErrorCodeInvalidField, "refresh_token is empty or missing")
+	}
+
+	refreshToken, err := a.queries.GetRefreshToken(r.Context(), body.RefreshToken)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return NotFoundError(ErrorCodeRefreshNotFoundToken, "failed to find refresh token")
+		}
+		return err
+	}
+
+	if refreshToken.Revoked {
+		return ForbiddenError(ErrorCodeRefreshTokenRevoked, "refresh token was revoked")
+	}
+
+	user, err := a.queries.GetUser(r.Context(), refreshToken.UserID.UUID)
+	if err != nil {
+		return err
+	}
+
+	var response *AccessTokenResponse
+
+	// Revoke and issue new refresh token
+	err = a.Transaction(r.Context(), func(tx *sql.Tx, queries *schema.Queries) error {
+		if err := queries.RevokeRefreshToken(r.Context(), refreshToken.ID); err != nil {
+			return err
+		}
+
+		response, err = a.issueToken(r.Context(), user)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	return writeResponseJSON(w, http.StatusOK, response)
+}
+
 func (a *SurgeAPI) issueToken(ctx context.Context, user *schema.AuthUser) (*AccessTokenResponse, error) {
 	logger := logrus.WithContext(ctx).WithField("user", user.ID)
 
@@ -110,7 +162,7 @@ func (a *SurgeAPI) issueToken(ctx context.Context, user *schema.AuthUser) (*Acce
 		logger.WithError(err).Errorln("failed to generate access accessToken")
 		return nil, InternalServerError("failed to generate access accessToken")
 	}
-	refreshToken, err := a.generateRefreshToken(ctx, user)
+	refreshToken, err := a.generateRefreshToken(ctx, a.queries, user)
 	if err != nil {
 		return nil, InternalServerError("failed to create refresh accessToken")
 	}
@@ -124,10 +176,10 @@ func (a *SurgeAPI) issueToken(ctx context.Context, user *schema.AuthUser) (*Acce
 	}, nil
 }
 
-func (a *SurgeAPI) generateRefreshToken(ctx context.Context, user *schema.AuthUser) (*schema.AuthRefreshToken, error) {
+func (a *SurgeAPI) generateRefreshToken(ctx context.Context, q *schema.Queries, user *schema.AuthUser) (*schema.AuthRefreshToken, error) {
 	logger := logrus.WithContext(ctx).WithField("user", user.ID)
 
-	token, err := a.queries.CreateRefreshToken(ctx, schema.CreateRefreshTokenParams{
+	token, err := q.CreateRefreshToken(ctx, schema.CreateRefreshTokenParams{
 		UserID:  uuid.NullUUID{UUID: user.ID, Valid: user != nil},
 		Token:   storage.NewString(utilities.SecureToken()),
 		Revoked: false,

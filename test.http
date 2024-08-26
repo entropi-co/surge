@@ -8,6 +8,7 @@ Content-Type: application/json
 
 {
   "username": "testuser",
+  "email": "test@example.com",
   "password": "secretpassword"
 }
 
@@ -19,6 +20,15 @@ Content-Type: application/json
   "username": "testuser",
   "password": "secretpassword"
 }
+
+> {%
+    client.global.set("access_token", response.body["access_token"]);
+    client.global.set("refresh_token", response.body["refresh_token"]);
+%}
+
+### Get user data
+GET http://localhost:3000/v1/user
+Authorization: Bearer {{access_token}}
 
 ### Get External OAuth2 Url
 GET http://localhost:3000/v1/external?no_redirect=true&provider=google

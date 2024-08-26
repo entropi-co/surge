@@ -37,3 +37,70 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 	)
 	return &i, err
 }
+
+const getRefreshToken = `-- name: GetRefreshToken :one
+select id, user_id, token, revoked, created_at, updated_at
+from auth.refresh_tokens
+where token = $1::varchar
+`
+
+func (q *Queries) GetRefreshToken(ctx context.Context, token string) (*AuthRefreshToken, error) {
+	row := q.db.QueryRowContext(ctx, getRefreshToken, token)
+	var i AuthRefreshToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.Revoked,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return &i, err
+}
+
+const listRefreshTokenByUser = `-- name: ListRefreshTokenByUser :many
+select id, user_id, token, revoked, created_at, updated_at
+from auth.refresh_tokens
+where user_id = $1
+`
+
+func (q *Queries) ListRefreshTokenByUser(ctx context.Context, userID uuid.NullUUID) ([]*AuthRefreshToken, error) {
+	rows, err := q.db.QueryContext(ctx, listRefreshTokenByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*AuthRefreshToken
+	for rows.Next() {
+		var i AuthRefreshToken
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Token,
+			&i.Revoked,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const revokeRefreshToken = `-- name: RevokeRefreshToken :exec
+update auth.refresh_tokens
+set revoked = true
+where id = $1
+`
+
+func (q *Queries) RevokeRefreshToken(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, revokeRefreshToken, id)
+	return err
+}

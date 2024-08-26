@@ -1,8 +1,18 @@
 -- name: CreateUser :one
-insert into auth.users(email, username, encrypted_password, meta_avatar, meta_first_name, meta_last_name,
+insert into auth.users(phone, email, username, encrypted_password, meta_avatar, meta_first_name, meta_last_name,
                        meta_birthdate,
                        meta_extra, created_at, updated_at)
-values ($1, $2, $3, $4, $5, $6, $7, $8, now(), now())
+values ($1,
+        $2,
+        $3,
+        $4,
+        $5,
+        $6,
+        $7,
+        $8,
+        $9,
+        now(),
+        now())
 returning *;
 
 -- name: GetUser :one
@@ -13,12 +23,17 @@ where id = $1;
 -- name: GetUserByEmail :one
 select *
 from auth.users
-where email = $1;
+where email = sqlc.arg('email')::varchar;
 
 -- name: GetUserByUsername :one
 select *
 from auth.users
-where username = $1;
+where username = sqlc.arg('username')::varchar;
+
+-- name: GetUserByRefreshToken :one
+select *
+from auth.users
+where (select * from auth.refresh_tokens where token = sqlc.arg('token')::varchar);
 
 -- name: UpdateUser :one
 update auth.users

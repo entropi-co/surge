@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/go-playground/validator/v10"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 	"surge/internal/api/provider"
 	"surge/internal/conf"
@@ -77,7 +78,7 @@ func CreateUser(queries *schema.Queries, ctx context.Context, config *conf.Surge
 		return nil, err
 	}
 
-	if _, err := queries.GetUserByEmail(ctx, storage.NewNullableString(options.Email)); options.Email != nil {
+	if _, err := queries.GetUserByEmail(ctx, *options.Email); options.Email != nil {
 		if err == nil {
 			return nil, ErrDuplicateEmail
 		}
@@ -86,7 +87,7 @@ func CreateUser(queries *schema.Queries, ctx context.Context, config *conf.Surge
 		}
 	}
 
-	if _, err := queries.GetUserByUsername(ctx, storage.NewNullableString(options.Username)); options.Email != nil {
+	if _, err := queries.GetUserByUsername(ctx, *options.Username); options.Email != nil {
 		if err == nil {
 			return nil, ErrDuplicateUsername
 		}
@@ -96,6 +97,7 @@ func CreateUser(queries *schema.Queries, ctx context.Context, config *conf.Surge
 	}
 
 	result, err := queries.CreateUser(ctx, schema.CreateUserParams{
+		Phone:             storage.NewNullableString(options.Phone),
 		Email:             storage.NewNullableString(options.Email),
 		Username:          storage.NewNullableString(options.Username),
 		EncryptedPassword: storage.NewNullableString(options.Password),
@@ -104,8 +106,10 @@ func CreateUser(queries *schema.Queries, ctx context.Context, config *conf.Surge
 		MetaFirstName: storage.NewNullableString(options.Metadata.FirstName),
 		MetaLastName:  storage.NewNullableString(options.Metadata.LastName),
 		MetaBirthdate: storage.NewNullableTime(options.Metadata.Birthdate),
+		MetaExtra:     json.RawMessage("{}"),
 	})
 	if err != nil {
+		logrus.WithError(err).Error(ErrDatabaseJob)
 		return nil, ErrDatabaseJob
 	}
 

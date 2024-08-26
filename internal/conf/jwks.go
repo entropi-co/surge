@@ -137,3 +137,17 @@ func GetSigningKeyFromJwk(key jwk.Key) (any, error) {
 	}
 	return raw, nil
 }
+
+func GetPublicKeyByID(kid string, config *SurgeJWTConfigurations) (any, error) {
+	if k, ok := config.Keys[kid]; ok {
+		key, err := GetSigningKeyFromJwk(k.PublicKey)
+		if err != nil {
+			return nil, err
+		}
+		return key, nil
+	}
+	if kid == *config.KeyID {
+		return []byte(config.Secret), nil
+	}
+	return nil, fmt.Errorf("invalid kid: %s", kid)
+}

@@ -2,10 +2,13 @@ create extension pgcrypto;
 
 create schema if not exists auth;
 
+create domain auth.phone as text check ( VALUE ~ '^(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$' );
+
 create table if not exists auth.users
 (
     id                 uuid                     not null unique default gen_random_uuid(),
 
+    phone              auth.phone               null unique,
     email              varchar(255)             null unique,
     username           varchar(255)             null unique,
     encrypted_password varchar(255)             null,

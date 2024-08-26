@@ -4,35 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"surge/internal/auth"
 	"surge/internal/utilities"
-	"time"
 )
 
-type signUpWithCredentialsBody struct {
-	Username *string `json:"username"`
-	Email    *string `json:"email"`
-	Phone    *string `json:"phone"`
-	Password *string `json:"password"`
-
-	Metadata struct {
-		Avatar    *string    `json:"avatar"`
-		FirstName *string    `json:"first_name"`
-		LastName  *string    `json:"last_name"`
-		Birthdate *time.Time `json:"birthdate"`
-	}
-}
-
-type signUpResponseBody struct {
-	Id        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
 func (a *SurgeAPI) EndpointSignUpWithCredentials(w http.ResponseWriter, r *http.Request) error {
-	body, err := utilities.GetBodyJson[signUpWithCredentialsBody](r)
+	body, err := utilities.GetBodyJson[SignUpWithCredentialsRequest](r)
 	if err != nil {
 		return err
 	}
@@ -48,6 +27,7 @@ func (a *SurgeAPI) EndpointSignUpWithCredentials(w http.ResponseWriter, r *http.
 	hashedPasswordString := string(hashedPassword[:])
 
 	createdUser, err := auth.CreateUser(queries, r.Context(), a.config, auth.CreateUserOptions{
+		Phone:    body.Phone,
 		Email:    body.Email,
 		Username: body.Username,
 		Password: &hashedPasswordString,
@@ -97,10 +77,5 @@ func (a *SurgeAPI) EndpointSignUpWithCredentials(w http.ResponseWriter, r *http.
 		return InternalServerError("unknown error during creating user")
 	}
 
-	return writeResponseJSON(w, http.StatusOK,
-		signUpResponseBody{
-			Id:        createdUser.ID,
-			CreatedAt: createdUser.CreatedAt,
-		},
-	)
+	return writeResponseJSON(w, http.StatusOK, NewUserResponse(createdUser))
 }

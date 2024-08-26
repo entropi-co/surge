@@ -35,7 +35,7 @@ func (a *SurgeAPI) createRouter() *SurgeAPIRouter {
 			router.Post("/credentials", a.EndpointSignUpWithCredentials)
 		})
 
-		router.Post("/accessToken", a.EndpointToken)
+		router.Post("/token", a.EndpointToken)
 
 		router.Route("/external", func(router *SurgeAPIRouter) {
 			router.Get("/", a.EndpointExternal)
@@ -46,6 +46,13 @@ func (a *SurgeAPI) createRouter() *SurgeAPIRouter {
 				router.Get("/", a.EndpointExternalCallback)
 				router.Post("/", a.EndpointExternalCallback)
 			})
+		})
+
+		router.Route("/user", func(router *SurgeAPIRouter) {
+			router.Use(a.useAuthentication)
+
+			router.Get("/", a.EndpointUser)
+			// TODO: Add update user route (POST|PUT /user)
 		})
 	})
 

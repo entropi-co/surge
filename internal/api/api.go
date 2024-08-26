@@ -17,9 +17,11 @@ import (
 type SurgeAPI struct {
 	httpHandler http.Handler
 	version     *string
-	conn        *sql.DB
-	queries     *schema.Queries
-	config      *conf.SurgeConfigurations
+
+	db      *sql.DB
+	queries *schema.Queries
+
+	config *conf.SurgeConfigurations
 }
 
 // NewSurgeAPI Creates a new SurgeAPI instance
@@ -28,7 +30,7 @@ func NewSurgeAPI(config *conf.SurgeConfigurations) SurgeAPI {
 	api := SurgeAPI{
 		version: nil,
 		config:  config,
-		conn:    conn,
+		db:      conn,
 		queries: storage.CreateQueries(conn),
 	}
 
@@ -38,7 +40,7 @@ func NewSurgeAPI(config *conf.SurgeConfigurations) SurgeAPI {
 }
 
 func (a *SurgeAPI) CloseDatabaseConnection() {
-	storage.CloseDatabase(a.conn)
+	storage.CloseDatabase(a.db)
 }
 
 // ListenAndServe starts the REST API with httpHandler
@@ -77,4 +79,24 @@ func (a *SurgeAPI) ListenAndServe(ctx context.Context, hostAndPort string) {
 	if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		log.WithError(err).Fatal("http server listen failed")
 	}
+}
+
+func (a *SurgeAPI) Transaction(ctx context.Context, fn func(tx *sql.Tx, queries *schema.Queries) error) error {
+	tx, err := a.db.BeginTx(ctx, &sql.TxOptions{})
+	if err != nil {
+		return err
+	}
+
+	fnError := fn(tx, a.queries.WithTx(tx))
+	if fnError != nil {
+		if txErr := tx.Rollback(); txErr != nil {
+			return errors.New("error rolling back transaction: " + txErr.Error())
+		}
+	} else {
+		if txErr := tx.Commit(); txErr != nil {
+			return errors.New("error commiting back transaction: " + txErr.Error())
+		}
+	}
+
+	return fnError
 }

@@ -28,7 +28,7 @@ func handleServeCommand(cmd *cobra.Command, args []string) error {
 
 	if config.Logging.EnableDebug {
 		logrus.SetLevel(logrus.DebugLevel)
-		logrus.Debugln("EnableDebug debugging")
+		logrus.Debugln("Enabled debugging")
 	}
 
 	surgeAPI := api.NewSurgeAPI(config)

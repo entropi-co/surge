@@ -24,6 +24,7 @@ type SurgeAuthenticateConfigurations struct {
 	DisablePhoneAuth    bool `default:"false" split_words:"true"`
 
 	AutoLinkSameEmail bool `default:"true" split_words:"true"`
+	AutoConfirmEmail  bool `default:"false" split_words:"true"`
 }
 
 type SurgeJWTConfigurations struct {
@@ -32,6 +33,8 @@ type SurgeJWTConfigurations struct {
 	Secret string `required:"true"`
 	Keys   JwkMap
 	KeyID  *string `split_words:"true"`
+
+	ValidMethods []string
 }
 
 type SurgeLoggingConfigurations struct {
@@ -39,17 +42,24 @@ type SurgeLoggingConfigurations struct {
 	EnableRequest bool `split_words:"true"`
 }
 
+type SurgeCookieConfigurations struct {
+	Key      string `json:"key"`
+	Domain   string `json:"domain"`
+	Duration int    `json:"duration"`
+}
+
 type SurgeConfigurations struct {
-	Auth     SurgeAuthenticateConfigurations `split_words:"true"`
-	JWT      SurgeJWTConfigurations          `split_words:"true"`
-	Database SurgeDatabaseConfigurations     `required:"true"`
+	Auth     SurgeAuthenticateConfigurations
+	JWT      SurgeJWTConfigurations
+	Cookie   SurgeCookieConfigurations
+	Database SurgeDatabaseConfigurations `required:"true"`
 	External SurgeExternalConfigurations
 
 	ServiceURL      string               `required:"true" split_words:"true"`
 	URIAllowListMap map[string]glob.Glob `split_words:"true"`
 	URIAllowList    []string             `json:"uri_allow_list" split_words:"true"`
 
-	Logging SurgeLoggingConfigurations `split_words:"true"`
+	Logging SurgeLoggingConfigurations
 }
 
 func LoadFromEnvironments() (*SurgeConfigurations, error) {
@@ -65,6 +75,10 @@ func LoadFromEnvironments() (*SurgeConfigurations, error) {
 
 	err := config.ApplyDefaults()
 	if err != nil {
+		return nil, err
+	}
+
+	if err = config.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -119,6 +133,14 @@ func (c *SurgeConfigurations) ApplyDefaults() error {
 		}
 	}
 
+	if c.JWT.ValidMethods == nil {
+		c.JWT.ValidMethods = []string{}
+		for _, key := range c.JWT.Keys {
+			alg := GetJwkCompatibleAlgorithm(key.PublicKey)
+			c.JWT.ValidMethods = append(c.JWT.ValidMethods, alg.Alg())
+		}
+	}
+
 	if c.URIAllowList == nil {
 		c.URIAllowList = []string{}
 	}
@@ -129,6 +151,14 @@ func (c *SurgeConfigurations) ApplyDefaults() error {
 			g := glob.MustCompile(uri, '.', '/')
 			c.URIAllowListMap[uri] = g
 		}
+	}
+
+	return nil
+}
+
+func (c *SurgeConfigurations) Validate() error {
+	if c.Auth.AutoConfirmEmail == false {
+		return errors.New(`SURGE_AUTH_AUTO_CONFIRM_EMAIL must be set to true. email confirmation is not supported yet`)
 	}
 	return nil
 }

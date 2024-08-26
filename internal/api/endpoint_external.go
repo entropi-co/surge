@@ -223,7 +223,7 @@ func (a *SurgeAPI) loadExternalStateToContext(ctx context.Context, state string)
 		u, err := a.queries.GetUser(ctx, linkingTargetUserID)
 		if err != nil {
 			if errors.Is(sql.ErrNoRows, err) {
-				return nil, UnprocessableEntityError(ErrorCodeNotFoundUser, "Linking target user not found")
+				return nil, UnprocessableEntityError(ErrorCodeUserNotFound, "Linking target user not found")
 			}
 			return nil, InternalServerError("Database error loading user: %+v", err)
 		}
