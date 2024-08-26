@@ -12,4 +12,6 @@ RUN cp /build/surge .
 
 FROM alpine AS runtime
 COPY --from=builder /dist/surge .
+COPY *.env .
+COPY .env .
 COPY schema ./schema
