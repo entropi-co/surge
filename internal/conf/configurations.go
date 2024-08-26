@@ -7,6 +7,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/sirupsen/logrus"
 	"surge/internal/utilities"
 )
 
@@ -65,7 +66,7 @@ type SurgeConfigurations struct {
 func LoadFromEnvironments() (*SurgeConfigurations, error) {
 	// Load .env
 	if err := godotenv.Load(); err != nil {
-		return nil, err
+		logrus.WithError(err).Warnln("Failed to load .env")
 	}
 
 	config := new(SurgeConfigurations)
