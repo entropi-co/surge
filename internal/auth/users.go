@@ -132,6 +132,7 @@ func CreateUserAndIdentity(queries *schema.Queries, ctx context.Context, options
 		MetaFirstName: sql.NullString{String: firstName, Valid: firstName != ""},
 		MetaLastName:  sql.NullString{String: lastName, Valid: lastName != ""},
 		MetaAvatar:    sql.NullString{String: avatarUrl, Valid: avatarUrl != ""},
+		MetaExtra:     json.RawMessage("{}"),
 	})
 	if err != nil {
 		return nil, nil, err

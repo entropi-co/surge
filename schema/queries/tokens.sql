@@ -17,3 +17,8 @@ where token = sqlc.arg('token')::varchar;
 update auth.refresh_tokens
 set revoked = true
 where id = $1;
+
+-- name: RevokeRefreshTokensOfUser :exec
+update auth.refresh_tokens
+set revoked = true
+where user_id = $1;

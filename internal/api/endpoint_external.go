@@ -90,7 +90,7 @@ func (a *SurgeAPI) internalExternalProviderCallback(w http.ResponseWriter, r *ht
 			ProviderData:      *userData,
 		})
 		if err != nil {
-			return InternalServerError("database failed to create new user and identity")
+			return InternalServerError("database failed to create new user and identity: %+v", err)
 		}
 	} else {
 		user, err = a.queries.GetUser(r.Context(), identity.UserID)

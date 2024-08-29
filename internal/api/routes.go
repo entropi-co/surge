@@ -9,8 +9,9 @@ import (
 
 func (a *SurgeAPI) createHttpHandler() http.Handler {
 	corsHandler := cors.New(cors.Options{
-		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete},
+		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions},
 		AllowCredentials: true,
+		AllowedHeaders:   []string{"*"},
 	})
 
 	return corsHandler.Handler(a.createRouter())
@@ -34,6 +35,10 @@ func (a *SurgeAPI) createRouter() *SurgeAPIRouter {
 		router.Route("/sign_up", func(router *SurgeAPIRouter) {
 			router.Post("/credentials", a.EndpointSignUpWithCredentials)
 		})
+
+		// TODO: Change /logout to /sign_out
+		// TODO: This change requires surge-js to update
+		router.With(a.useAuthentication).Post("/logout", a.EndpointSignOut)
 
 		router.Post("/token", a.EndpointToken)
 

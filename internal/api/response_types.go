@@ -25,6 +25,7 @@ func (r *AccessTokenResponse) MakeRedirectUrl(redirectURL string, extraParams ur
 	extraParams.Set("expires_in", strconv.Itoa(r.ExpiresIn))
 	extraParams.Set("expires_at", strconv.FormatInt(r.ExpiresAt, 10))
 	extraParams.Set("refresh_token", r.RefreshToken)
+	extraParams.Set("token_type", "bearer")
 
 	return redirectURL + "#" + extraParams.Encode()
 }

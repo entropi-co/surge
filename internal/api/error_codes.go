@@ -35,4 +35,6 @@ const (
 
 	ErrorCodeNoAuthorization ErrorCode = "no_authorization"
 	ErrorCodeBadJWT          ErrorCode = "bad_jwt"
+
+	ErrorCodeInvalidLogoutScope ErrorCode = "invalid_logout_scope"
 )

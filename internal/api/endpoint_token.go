@@ -22,6 +22,14 @@ type AccessTokenClaims struct {
 	Username *string `json:"username"`
 }
 
+func (c AccessTokenClaims) GetSubjectUUID() (uuid.UUID, error) {
+	subject, err := c.GetSubject()
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return uuid.Parse(subject)
+}
+
 type TokenGrantType = string
 
 const (
