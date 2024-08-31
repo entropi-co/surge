@@ -59,8 +59,8 @@ type SurgeConfigurations struct {
 	ServiceURL string `required:"true" split_words:"true"`
 	Host       string `default:"0.0.0.0:3000"`
 
-	URIAllowListMap map[string]glob.Glob `split_words:"true"`
-	URIAllowList    []string             `json:"uri_allow_list" split_words:"true"`
+	URIAllowListMap map[string]glob.Glob
+	URIAllowList    []string `envconfig:"surge_uri_allow_list" split_words:"true"`
 
 	Logging SurgeLoggingConfigurations
 }
@@ -72,6 +72,7 @@ func LoadFromEnvironments() (*SurgeConfigurations, error) {
 	}
 
 	config := new(SurgeConfigurations)
+
 	if err := envconfig.Process("surge", config); err != nil {
 		return nil, err
 	}
