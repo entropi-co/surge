@@ -81,7 +81,7 @@ func (a *SurgeAPI) internalExternalProviderCallback(w http.ResponseWriter, r *ht
 	})
 	if err != nil {
 		if !errors.Is(sql.ErrNoRows, err) {
-			return InternalServerError("database failed to find existing identity")
+			return InternalServerError("database failed to find existing identity: %+v", err)
 		}
 
 		user, identity, err = auth.CreateUserAndIdentity(a.queries, r.Context(), auth.CreateUserAndIdentityOptions{
