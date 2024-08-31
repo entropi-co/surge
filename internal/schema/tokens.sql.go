@@ -41,7 +41,7 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 const getRefreshToken = `-- name: GetRefreshToken :one
 select id, user_id, token, revoked, created_at, updated_at
 from auth.refresh_tokens
-where token = $1::varchar
+where token = $1::varchar and revoked = false
 `
 
 func (q *Queries) GetRefreshToken(ctx context.Context, token string) (*AuthRefreshToken, error) {

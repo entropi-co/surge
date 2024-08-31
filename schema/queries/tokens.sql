@@ -11,7 +11,7 @@ where user_id = $1;
 -- name: GetRefreshToken :one
 select *
 from auth.refresh_tokens
-where token = sqlc.arg('token')::varchar;
+where token = sqlc.arg('token')::varchar and revoked = false;
 
 -- name: RevokeRefreshToken :exec
 update auth.refresh_tokens
