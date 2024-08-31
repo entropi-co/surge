@@ -6,7 +6,7 @@ dev-docker:
 
 dev-postgres-standalone:
 	@echo Starting development PostgreSQL as standalone container
-	docker compose -f docker-compose.postgres.yml up -d
+	docker compose -f docker-compose.postgres.yml up -d --remove-orphans
 	@echo Started in background
 
 dev-postgres-standalone-stop:
