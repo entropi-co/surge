@@ -19,8 +19,6 @@ func GetRequestReferrer(r *http.Request, config *conf.SurgeConfigurations) strin
 		return reqref
 	}
 
-	reqref = r.Referer()
-
 	return config.ServiceURL
 }
 
