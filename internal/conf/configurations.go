@@ -33,7 +33,7 @@ type SurgeJWTConfigurations struct {
 
 	Secret string `required:"true"`
 	Keys   JwkMap
-	KeyID  *string `split_words:"true"`
+	KeyID  string `split_words:"true"`
 
 	ValidMethods []string
 }
@@ -101,7 +101,7 @@ func (c *SurgeConfigurations) ApplyDefaults() error {
 		if err != nil {
 			return err
 		}
-		if c.JWT.KeyID != nil && *c.JWT.KeyID != "" {
+		if c.JWT.KeyID != "" {
 			// Override key id
 			if err := privateKey.Set(jwk.KeyIDKey, c.JWT.KeyID); err != nil {
 				return err
@@ -131,7 +131,7 @@ func (c *SurgeConfigurations) ApplyDefaults() error {
 
 		// Assign default JWKs
 		c.JWT.Keys = make(JwkMap)
-		c.JWT.Keys[*utilities.OrDefaultFn(c.JWT.KeyID, func() *string { return new(string) })] = JwkPair{
+		c.JWT.Keys[*utilities.OrDefaultFn(&c.JWT.KeyID, func() *string { return new(string) })] = JwkPair{
 			PublicKey:  pubKey,
 			PrivateKey: privateKey,
 		}

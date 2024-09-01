@@ -146,7 +146,7 @@ func GetPublicKeyByID(kid string, config *SurgeJWTConfigurations) (any, error) {
 		}
 		return key, nil
 	}
-	if kid == *config.KeyID {
+	if kid == config.KeyID {
 		return []byte(config.Secret), nil
 	}
 	return nil, fmt.Errorf("invalid kid: %s", kid)
