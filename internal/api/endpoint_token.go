@@ -227,6 +227,7 @@ func (a *SurgeAPI) generateAccessToken(user *schema.AuthUser) (string, int64, er
 
 	// Create accessToken with claims
 	token := jwt.NewWithClaims(signingMethod, claims)
+	token.Header["kid"] = signingKey.KeyID()
 
 	jwt.MarshalSingleStringAsArray = false
 	// Acquire raw signing key from JWK
